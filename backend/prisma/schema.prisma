@@ -1,0 +1,149 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Customer {
+  id           String         @id @default(cuid())
+  businessId   String?
+  name         String
+  phone        String
+  email        String?
+  address      String?
+  notes        String?
+  tags         String         @default("[]")
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  business     Business?      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  leads        Lead[]
+  appointments Appointment[]
+  payments     Payment[]
+  followUps    FollowUpTask[]
+}
+
+model Lead {
+  id               String         @id @default(cuid())
+  businessId       String?
+  customerId       String
+  source           String
+  serviceType      String
+  status           String         @default("New")
+  valueEstimate    Float?
+  urgency          String         @default("Normal")
+  nextFollowUpDate DateTime?
+  notes            String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  business         Business?      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customer         Customer       @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  appointments     Appointment[]
+  followUps        FollowUpTask[]
+}
+
+model Appointment {
+  id          String    @id @default(cuid())
+  businessId  String?
+  customerId  String
+  leadId      String?
+  service     String
+  scheduledAt DateTime
+  status      String    @default("Booked")
+  price       Float?
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  business    Business? @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customer    Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  lead        Lead?     @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  payments    Payment[]
+}
+
+model Payment {
+  id            String       @id @default(cuid())
+  businessId    String?
+  customerId    String
+  appointmentId String?
+  amount        Float
+  paidAmount    Float        @default(0)
+  status        String       @default("Unpaid")
+  method        String?
+  dueAt         DateTime?
+  paidAt        DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  business      Business?    @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customer      Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+}
+
+model FollowUpTask {
+  id               String    @id @default(cuid())
+  businessId       String?
+  customerId       String
+  leadId           String?
+  dueAt            DateTime
+  reason           String
+  status           String    @default("Open")
+  suggestedMessage String
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  business         Business? @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customer         Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  lead             Lead?     @relation(fields: [leadId], references: [id], onDelete: SetNull)
+}
+
+model User {
+  id           String           @id @default(cuid())
+  name         String
+  email        String           @unique
+  passwordHash String
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  memberships  BusinessMember[]
+  audits       AuditLog[]
+}
+
+model Business {
+  id           String           @id @default(cuid())
+  name         String
+  industry     String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  memberships  BusinessMember[]
+  customers    Customer[]
+  leads        Lead[]
+  appointments Appointment[]
+  payments     Payment[]
+  followUps    FollowUpTask[]
+  audits       AuditLog[]
+}
+
+model BusinessMember {
+  id         String   @id @default(cuid())
+  userId     String
+  businessId String
+  role       String   @default("Owner")
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, businessId])
+}
+
+model AuditLog {
+  id          String    @id @default(cuid())
+  businessId  String?
+  actorUserId String?
+  model       String
+  modelId     String?
+  action      String
+  description String
+  changes     String    @default("{}")
+  createdAt   DateTime  @default(now())
+  business    Business? @relation(fields: [businessId], references: [id], onDelete: SetNull)
+  actor       User?     @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+}
